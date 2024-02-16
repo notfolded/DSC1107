@@ -1,0 +1,172 @@
+---
+title: "FA1-DMW-BAYQUEN"
+output: html_document
+date: "2024-02-16"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Lecture 2: Data Visualization
+
+## **VARIATION**
+
+**Discrete Variables**
+
+```{r}
+library('ggplot2')
+ggplot(data = diamonds) +
+  geom_bar(mapping = aes(x = cut), fill="salmon")
+```
+
+**Continuous Variables**
+```{r}
+ggplot(data = diamonds) +
+geom_histogram(mapping = aes(x = carat), fill="salmon")
+```
+
+> *zoomed in portion of the plot using coord_cartesian:*
+
+```{r}
+ggplot(data = diamonds) +
+  geom_histogram(mapping = aes(x = carat),fill="salmon") +
+  coord_cartesian(xlim = c(0,3))
+``` 
+
+> *decreasing the bandwith*
+
+```{r}
+ggplot(data = diamonds) +
+  geom_histogram(mapping = aes(x = carat), binwidth = 0.01, fill = "salmon") +
+  coord_cartesian(xlim = c(0,3))
+```
+
+## **COVARIATION**
+
+**Discrete versus discrete**
+
+```{r}
+ggplot(data = diamonds,) +
+  geom_count(mapping = aes(x = cut, y = clarity), color="darkseagreen3")
+
+```
+
+**Continuous versus continuous**
+
+> **Many to one**
+
+```{r}
+ggplot(data = diamonds) +
+  geom_point(mapping = aes(x = x, y = y), color="darkseagreen3")
+```
+
+> *zoomed in on the part of the plot where most of the points lie*
+
+```{r}
+ggplot(data = diamonds) +
+  geom_point(mapping = aes(x = x, y = y), color="darkseagreen3") +
+  coord_cartesian(xlim = c(3.5, 10), ylim = c(3.5,10))
+```
+
+> *add a line to the plot via geom_abline()*
+
+```{r}
+ggplot(data = diamonds) +
+  geom_point(mapping = aes(x = x, y = y),  color="darkseagreen3") +
+  geom_abline(slope = 1, intercept = 0, color = "red") +
+  coord_cartesian(xlim = c(3.5, 10), ylim = c(3.5,10))
+```
+
+> **One to one**
+
+construct the requisite data frame
+
+```{r}
+library(dplyr)
+
+avg_price_by_carat <- diamonds %>%
+  mutate(carat = round(carat, 1)) %>%
+  group_by(carat) %>%
+  summarise(avg_price = mean(price))
+avg_price_by_carat
+```
+
+> *line plot*
+
+
+```{r}
+ggplot(data = avg_price_by_carat) +
+  geom_line(mapping = aes(x = carat, y = avg_price))
+```
+
+**Continuous versus discrete**
+
+> *boxplots*
+
+```{r}
+ggplot(data = diamonds) +
+  geom_boxplot(mapping = aes(x = cut, y = price))
+```
+
+## **ADDITIONAL VISUALIZATION TOOLS**
+
+> **Axis Transformations**
+
+```{r}
+ggplot(data = diamonds) +
+  geom_histogram(aes(x = carat), binwidth = 0.01, color = "darkorchid2")
+
+```
+
+> *x-axis on a logarithmic scale*
+
+```{r}
+ggplot(data = diamonds) +
+  geom_histogram(aes(x = carat), binwidth = 0.01, color = "darkorchid2") +
+  scale_x_log10()
+
+```
+ 
+> *y-axis on a logarithmic scale*
+
+```{r}
+ggplot(data = diamonds) +
+  geom_point(aes(x = carat, y = price), color = "darkorchid2") +
+  scale_x_log10() +
+  scale_y_log10()
+```
+ 
+> **Multiple aesthetics in the same geom**
+
+```{r}
+ggplot(data = diamonds) +
+  geom_point(mapping = aes(x = carat, y = price))
+```
+
+> *color points based on the cut of the diamond*
+
+```{r}
+ggplot(data = diamonds) +
+  geom_point(mapping = aes(x = carat, y = price, color = cut))
+```
+
+> *Faceting*
+
+```{r}
+ggplot(data = diamonds) +
+  geom_point(mapping = aes(x = carat, y = price, color = cut)) +
+  facet_wrap(~cut)
+```
+
+```{r}
+ggplot(data = diamonds) +
+  geom_point(mapping = aes(x = carat, y = price, color = cut)) +
+  facet_grid(. ~ cut)
+```
+```{r}
+
+ggplot(data = diamonds) +
+  geom_point(mapping = aes(x = carat, y = price, color = cut)) +
+  facet_grid(clarity ~ cut)
+```

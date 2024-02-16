@@ -1,0 +1,17 @@
+---
+title: "FA1-3-DMW-BAYQUEN"
+output: html_document
+date: "2024-02-16"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Lecture 4:  Data Wrangling
+
+```{r cars}
+library(tidyverse)
+```
+
+
