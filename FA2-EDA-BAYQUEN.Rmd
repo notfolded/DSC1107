@@ -1,0 +1,86 @@
+---
+title: "FA2-EDA-BAYQUEN"
+author: "Bayquen, Christopher Gilbert A."
+date: "2024-02-21"
+output:
+  html_document: default
+  pdf_document: default
+---
+## **CYTOF TIDY DATA**
+
+***importing the necessary libraries and the data set***
+
+```{r setup, include=FALSE}
+
+
+```
+
+```{r cache = TRUE}
+library(dplyr)
+library(tidyverse)
+library(ggplot2)
+
+cytof_df <- read.csv("C:/Users/chris/Desktop/Productivity/Academics/College/3rd Year/2nd Semester/EDA/FA2/cytof_one_experiment.csv")
+```
+
+**Use pivot_longer to reshape the dataset into one that has two columns, the first giving the protein identity and the second giving the amount of the protein in one of the cells. The dataset you get should have 1750000 rows (50000 cells in the original dataset times 35 proteins).**
+
+```{r cache = TRUE}
+
+reshaped_cytof_df<- cytof_df %>%
+    pivot_longer(cols = everything(), names_to = "Protein", values_to = "Amount")
+
+print(reshaped_cytof_df)
+```
+
+**Use group_by and summarise to find the median protein level and the median absolute deviation of the protein level for each marker. (Use the R functions median and mad).**
+
+```{r cache = TRUE}
+protein_summary <- reshaped_cytof_df %>%
+  group_by(Protein) %>%
+  summarise(
+    median_protein_level = median(Amount),
+    median_absolute_deviation = mad(Amount)
+  )
+
+print(protein_summary)
+```
+
+**Make a plot with mad on the x-axis and median on the y-axis. This is known as a spread location (s-l) plot.What does it tell you about the relationship betwen the median and the mad?**
+```{r cache = TRUE}
+print(ggplot(protein_summary, aes(x = median_absolute_deviation, y = median_protein_level)) +
+  geom_point() +  # Add points for each protein
+  geom_smooth(method = "lm", se = FALSE, color="salmon") +  # Add a linear regression line
+  labs(x = "Median Absolute Deviation", y = "Median Protein Level", title = "Spread-Location (S-L) Plot of Protein Levels"))
+
+```
+
+> ***interpretation: ***  We can observe in the graph above that the slope of the points in the plot indicates that the relationship between the median absolute deviation (MAD) and the median protein level is weak; the flat slope suggests a weaker relationship, and that the data cluster of data points is nowhere near the slope of the graph. We can observe that there are data points with the same median protein levels, but different MAD values, and vice versa-- we have data points with similar MAD values, but different median protein levels, which further suggests that there is no clear relationship between the two variables. We can also observe a few outliers in the distribution of the data points that are away from the clustered data points. 
+
+
+## **GYM TIDY DATA**
+
+```{r}
+gym_df <- read.csv("C:/Users/chris/Desktop/Productivity/Academics/College/3rd Year/2nd Semester/EDA/FA2/gymData.csv")
+
+gym_df
+
+```
+
+**Using either pivot_longer on its own or pivot_longer in combination with separate, reshape the dataset so that it has columns for country, event, year, and score.**
+
+```{r cache = TRUE}
+library(dplyr)
+library(dplyr)
+library(tidyverse)
+library(ggplot2)
+
+gym_df %>% 
+  pivot_longer(
+    cols = -country,
+    names_to = c("event", "year"),
+    names_sep = "_",
+    values_to = "score"
+  )
+
+```
