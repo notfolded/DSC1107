@@ -1,0 +1,240 @@
+---
+title: "FA2 Data Mining and Wrangling"
+author: "Bayquen, Christopher Gilbert A."
+date: "2024-02-25"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## **CASE STUDY: MAJOR LEAGUE BASEBALL**
+What is the relationship between payroll and wins among Major League Baseball (MLB) teams? In this homework,
+we’ll find out by wrangling, exploring, and modeling the dataset in MLPayData_Total.rdata, which contains the
+winning records and the payroll data of all 30 MLB teams from 1998 to 2014.
+
+**1. WRANGLE**
+
+**1.1. Importing the Necessary Packages and Data set into a Tibble**
+```{r eval = FALSE}
+
+library(tidyverse) # tidyverse
+library(ggrepel) # for scatter plot point labels
+library(kableExtra) # for printing tables 
+library(cowplot)# for side by side plots
+library(dplyr)
+library(ggplot2)
+library(ggrepel)
+library(gggenes)
+
+# loading in the data frame into a tibble
+load("ml_pay.rdata")
+mlb_raw <- as_tibble(ml_pay)
+mlb_raw
+```
+
+```{r echo= FALSE}
+library(tidyverse) # tidyverse
+# loading in the data frame
+load("ml_pay.rdata")
+mlb_raw <- as_tibble(ml_pay)
+mlb_raw
+```
+> there are **30 rows** and **54 columns** in the *mlb_raw* tibble which matches perfectly with the data description provided. 
+
+**1.2. TIDY**
+
+<center> **AGGREGATED TIBBLE**</center>
+```{r}
+# Tidy mlb_aggregate
+mlb_aggregate <- mlb_raw %>%
+  select(Team.name.2014, payroll, avgwin) %>%
+  rename(team = Team.name.2014, payroll_aggregate = payroll, pct_wins_aggregate = avgwin)
+
+mlb_aggregate
+```
+
+<center>**YEARLY TIBBLE**</center>
+```{r}
+# Tidy mlb_yearly
+mlb_yearly <- mlb_raw %>% 
+  select(team = Team.name.2014, starts_with("X"), starts_with("p")) %>%
+  pivot_longer(-team, names_to = "year_values", values_to = "value")%>%
+  
+  mutate(
+    metric = if_else(str_detect(year_values, "^p"), "payroll",
+                     if_else(str_detect(year_values, "\\.pct$"), "pct_wins",
+                             if_else(str_detect(year_values, "^X"), "num_wins", NA_character_))),
+    year = str_extract(year_values, "\\d{4}")
+  ) %>%
+  
+  filter(!is.na(metric)) %>%
+    filter(!is.na(year)) %>%
+    mutate(year = as.numeric(year), value = as.numeric(value)) %>%
+    drop_na(value) %>%
+    group_by(team, year, metric) %>%
+    summarise(value = mean(value), .groups = 'drop') %>%
+    pivot_wider(names_from = metric, values_from = value) %>%
+      select(team, year, payroll, pct_wins, num_wins)
+   
+  
+mlb_yearly
+```
+
+**1.3. QUALITY CONTROL**
+
+<center> *checking the aggregated values* </center>
+```{r}
+mlb_aggregate_computed <- mlb_yearly %>%
+  group_by(team) %>%
+  summarise(
+    payroll_aggregate_computed = sum(payroll, na.rm = TRUE),
+    pct_wins_aggregate_computed = mean(pct_wins, na.rm = TRUE)
+  ) %>%
+  ungroup()
+
+mlb_aggregate_joined <- inner_join(mlb_aggregate, mlb_aggregate_computed, by="team")
+mlb_aggregate_joined
+
+```
+
+
+<center> *plotting a scatter plot for each tibble*</center>
+
+```{R}
+# Scatter plot for payroll
+payroll_plot <- ggplot(mlb_aggregate_joined, aes(x = payroll_aggregate, y = payroll_aggregate_computed)) +
+  geom_point(color = "navyblue") +
+  geom_abline(intercept = 0, slope = 1, linetype = "dashed", color = "red") +  # Add the 45-degree dashed red line
+  labs(title = "Payroll Comparison",
+       x = "Provided Aggregate Payroll",
+       y = "Computed Aggregate Payroll")
+
+
+# Scatter plot for win percentage
+pct_wins_plot <- ggplot(mlb_aggregate_joined, aes(x = pct_wins_aggregate, y = pct_wins_aggregate_computed)) +
+  geom_point(color="seagreen") +
+  geom_abline(intercept = 0, slope = 1, color = "red", linetype = "dashed") +
+  labs(title = "Win Percentage Comparison",
+       x = "Provided Aggregate Win Percentage",
+       y = "Computed Aggregate Win Percentage")
+
+# Combine the plots side by side
+combined_plots <- cowplot::plot_grid(payroll_plot, pct_wins_plot)
+print(combined_plots)
+```
+
+> **interpretation: ** As we can see in the *mlb_aggregate_joined* tibble, the values that we have manually computed and the given values in the data set are not exactly the same. The scatter plots above shows us a positively correlated relationship between the computed values and the provided aggregate statistics; one of the explanations to these would probably be that the given raw data of the aggregated payroll of each team for the duration of 17 years is in billions of dollars, while the raw data provided for the payroll of each year is in millions of dollars.
+
+**2. EXPLORE**
+
+**2.1 PAYROLL ACROSS YEARS**
+
+<center> **payroll as a function of year for each of the 30 teams** </center>
+
+```{R}
+ggplot(mlb_yearly, aes(x = as.numeric(year), y = payroll, group = team)) + 
+  geom_line() +
+  geom_point(color="darkblue") + 
+  geom_hline(data = mlb_yearly %>% group_by(team) %>% 
+               summarise(mean_payroll = mean(payroll, na.rm = TRUE), .groups = 'keep'),
+             aes(yintercept = mean_payroll), linetype = "dashed", color = "red") +
+  facet_wrap(~team, scales = "free_y") +
+  theme_light() +
+  labs(title = "Payroll as a Function of Year for Each Team", x = "1998 - 2014", y = "Payroll") +
+  scale_x_continuous(breaks = range(as.numeric(mlb_yearly$year)),  # Ensure range is numeric
+                     labels = c(min(mlb_yearly$year), max(mlb_yearly$year))) +
+  theme(axis.text.x = element_text(angle = 0))  # Set x-axis text angle
+```
+
+<center> **three teams with the greatest payroll_aggregate_computed** </center>
+
+```{r}
+top3_payroll <- mlb_aggregate_computed %>%
+                arrange(desc(payroll_aggregate_computed)) %>%
+                slice_head(n = 3)
+
+top3_payroll
+```
+
+<center> **three teams with the greatest percentage increase in payroll from 1998 to 2014** </center>
+```{r}
+result <- mlb_yearly %>%
+  filter(year %in% c(1998, 2014)) %>%
+  group_by(team) %>%
+  summarise(payroll_1998 = payroll[year == 1998],
+            payroll_2014 = payroll[year == 2014]) %>%
+  ungroup() %>%
+  mutate(pct_increase = ((payroll_2014 - payroll_1998) / payroll_1998) * 100) %>%
+  head(3)
+
+result
+```
+
+**2.2 WIN PERCENTAGE ACROSS YEARS**
+
+<center> **pct_wins versus payroll based on the aggregated data** </center>
+
+```{r}
+mlb_yearly$year <- as.numeric(as.character(mlb_yearly$year))
+
+ggplot(mlb_yearly, aes(x = year, y = pct_wins, group = team)) +
+  geom_line() +
+  geom_point(color="darkblue") +
+  geom_hline(data = mlb_yearly %>% group_by(team) %>%
+               summarise(mean_pct_wins = mean(pct_wins, na.rm = TRUE), .groups = 'keep'),
+             aes(yintercept = mean_pct_wins), linetype = "dashed", color = "red") +
+  facet_wrap(~team, scales = "free_y") +
+  theme_light() +
+  labs(title = "Win Percentage as a Function of Year for Each Team", x = "1998 - 2014)", y = "Win Percentage") +
+  scale_x_continuous(breaks = range(mlb_yearly$year),
+                     labels = c(min(mlb_yearly$year), max(mlb_yearly$year))) +
+  theme(axis.text.x = element_text(angle = 0))
+```
+
+> **interpretation:** you would expect that throughout the years, the win percentage of the teams would probably have a positive slope considering that the more experience you get, the more skilled you should  be getting. However, the trend of the plots above shows otherwise; some teams have a positive slope while some are zig-zagging throughout the years. This may be a result of inconsistent players, considering that the players in the teams probaby change from year to year. 
+
+
+<center> **three teams with the greatest pct_wins_aggregate_computed ** </center>
+
+```{r}
+top3_agg<- mlb_aggregate_computed %>%
+  arrange(desc(pct_wins_aggregate_computed)) %>%
+  slice_head(n = 3) 
+
+top3_agg  
+
+```
+<center> **the Three Teams with the Most Erratic pct_wins ** </center>
+
+```{r}
+top3_err <- mlb_yearly %>%
+  group_by(team) %>%
+  summarise(pct_wins_sd = sd(pct_wins, na.rm = TRUE)) %>%
+  arrange(desc(pct_wins_sd)) %>%
+  slice_head(n = 3)
+
+top3_err  
+
+```
+
+## **2.3 SCATTER PLOTS**
+
+```{r}
+library(ggrepel)
+ggplot(mlb_aggregate, aes(x = payroll_aggregate, y = pct_wins_aggregate, label = team)) +
+  geom_point() +
+  geom_text_repel() +
+  geom_smooth(method = "lm", color = "salmon") +
+  theme_light() +
+  labs(title = "Relationship between Payroll and Win Percentage",
+       x = "Payroll Aggregate",
+       y = "Win Percentage Aggregate")
+```
+ 
+ > **interpretation:** 
+In Major League Baseball, there exists a positive correlation between payroll and win percentage, as depicted in the scatter plot. This conforms to the anticipated notion that higher financial investment can contribute positively to a team's overall performance. Nevertheless, the correlation is not flawless, and there are instances where teams either surpass or fall short of expectations relative to their payroll. This phenomenon suggests the presence of other variables influencing team performance beyond financial expenditure.
